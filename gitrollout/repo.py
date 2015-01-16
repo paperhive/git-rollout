@@ -11,7 +11,8 @@ import shutil
 import subprocess
 
 
-class Config(object):
+class TargetConfig(object):
+    '''Config for a branch/tag target'''
     def __init__(self, targetPath, filters=None, eventCmd=None):
         self.targetPath = targetPath
         if filters is None:
@@ -20,6 +21,7 @@ class Config(object):
         self.eventCmd = eventCmd
 
     def emit(self, type, event, name, desc=None):
+        '''Call eventCmd'''
         if self.eventCmd is None:
             return
         args = [self.eventCmd, type, event, name]
@@ -29,6 +31,7 @@ class Config(object):
         # TODO: check return code
 
     def is_valid_name(self, name):
+        '''Does name match the branch/tag names and is a valid filename?'''
         # apply all filters and check for some nasty characters in a filename
         if not any([filter.match(name) for filter in self.filters]):
             return False
@@ -86,7 +89,8 @@ class Repo(git.Repo):
         return branchesDiff, tagsDiff
 
 
-class Hub(object):
+class MirrorHub(object):
+    '''Maintains a mirror of a remote repo and checks out branches and tags'''
     def __init__(self, path, remoteUrl=None,
                  branchesConfig=None, tagsConfig=None):
         self.branchesConfig = branchesConfig
@@ -119,11 +123,13 @@ class Hub(object):
                 })
 
     def sync(self):
+        '''Sync the mirror and apply all changes'''
         branchesDiff, tagsDiff = self.repo.sync()
         self._apply_diff('branches', branchesDiff)
         self._apply_diff('tags', tagsDiff)
 
     def _apply_diff(self, type, diff):
+        '''Remove/add branch/tag checkouts based on a diff'''
         # get config for provided type
         if type == 'branches':
             config = self.branchesConfig
@@ -143,6 +149,7 @@ class Hub(object):
         self._add(type, config, diff['modified'] + diff['added'])
 
     def _remove(self, type, config, names):
+        '''Remove provided branch/tag checkouts'''
         for name in names:
             # check if name is valid
             if not config.is_valid_name(name):
@@ -163,6 +170,7 @@ class Hub(object):
                             'removed path {0}'.format(path))
 
     def _add(self, type, config, names):
+        '''Add provided branch/tag checkouts'''
         for name in names:
             # check if name is valid
             if not config.is_valid_name(name):
