@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import argparse
+import gitrollout
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        'mirrorPath',
+        help='local path where the git repo should be mirrored to',
+        type=str
+        )
+    parser.add_argument(
+        'remoteUrl',
+        help='URL of the remote repo that should be mirrored',
+        type=str
+        )
+    parser.add_argument(
+        '--branchesPath',
+        help='local path where branches should be checked out to',
+        type=str
+        )
+    parser.add_argument(
+        '--branchesCmd',
+        help='command that should be executed when changes to branches occur',
+        type=str
+        )
+    parser.add_argument(
+        '--tagsPath',
+        help='local path where tags should be checked out to',
+        type=str
+        )
+    parser.add_argument(
+        '--tagsCmd',
+        help='command that should be executed when changes to tags occur',
+        type=str
+        )
+    args = parser.parse_args()
+
+    # branches config
+    branchesConfig = None
+    if args.branchesPath is not None:
+        branchesConfig = gitrollout.TargetConfig(
+            args.branchesPath, eventCmd=args.branchesCmd
+            )
+
+    # tags config
+    tagsConfig = None
+    if args.tagsPath is not None:
+        tagsConfig = gitrollout.TargetConfig(
+            args.tagsPath, eventCmd=args.tagsCmd
+            )
+
+    hub = gitrollout.MirrorHub(
+        args.mirrorPath, args.remoteUrl,
+        branchesConfig=branchesConfig,
+        tagsConfig=tagsConfig
+        )
+
+
+if __name__ == "__main__":
+    main()

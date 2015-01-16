@@ -11,6 +11,7 @@ def read(fname):
 
 setup(name='gitrollout',
       packages=['gitrollout'],
+      scripts=['git-rollout'],
       version='0.0.1',
       description='Continuously deploy git branches and tags to'
                   'subdirectories',

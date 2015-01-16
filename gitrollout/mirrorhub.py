@@ -46,13 +46,13 @@ class TargetConfig(object):
 
 class MirrorHub(object):
     '''Maintains a mirror of a remote repo and checks out branches and tags'''
-    def __init__(self, path, remoteUrl=None,
+    def __init__(self, mirrorPath, remoteUrl=None,
                  branchesConfig=None, tagsConfig=None):
         self.branchesConfig = branchesConfig
         self.tagsConfig = tagsConfig
-        if os.path.isdir(path):
+        if os.path.isdir(mirrorPath):
             # open repo
-            self.repo = Repo(path)
+            self.repo = Repo(mirrorPath)
 
             # update origin url
             if remoteUrl is not None:
@@ -61,7 +61,7 @@ class MirrorHub(object):
             self.sync()
         else:
             # clone
-            self.repo = Repo.clone_from(remoteUrl, path, mirror=True)
+            self.repo = Repo.clone_from(remoteUrl, mirrorPath, mirror=True)
 
             # apply 'virtual' diff where all branches + tags are added
             self._apply_diff('branches', {
