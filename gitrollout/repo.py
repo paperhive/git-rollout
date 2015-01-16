@@ -13,25 +13,25 @@ import subprocess
 
 class TargetConfig(object):
     '''Config for a branch/tag target'''
-    def __init__(self, targetPath, filters=None, eventCmd=None):
-        self.targetPath = targetPath
+    def __init__(self, path, filters=None, eventCmd=None):
+        self.path = path
         if filters is None:
             filters = [r'.*']
         self.filters = [re.compile(filter) for filter in filters]
         self.eventCmd = eventCmd
 
-    def emit(self, type, event, name, desc=None):
+    def emit(self, refType, event, name, desc=None):
         '''Call eventCmd'''
         if self.eventCmd is None:
             return
-        args = [self.eventCmd, type, event, name]
+        args = [self.eventCmd, refType, event, name]
         if desc is not None:
             args.append(desc)
         subprocess.call(args)
         # TODO: check return code
 
     def is_valid_name(self, name):
-        '''Does name match the branch/tag names and is a valid filename?'''
+        '''Does name match the branch/tag refNames and is a valid filename?'''
         # apply all filters and check for some nasty characters in a filename
         if not any([filter.match(name) for filter in self.filters]):
             return False
@@ -128,68 +128,68 @@ class MirrorHub(object):
         self._apply_diff('branches', branchesDiff)
         self._apply_diff('tags', tagsDiff)
 
-    def _apply_diff(self, type, diff):
+    def _apply_diff(self, refType, diff):
         '''Remove/add branch/tag checkouts based on a diff'''
-        # get config for provided type
-        if type == 'branches':
+        # get config for provided refType
+        if refType == 'branches':
             config = self.branchesConfig
-        elif type == 'tags':
+        elif refType == 'tags':
             config = self.tagsConfig
         else:
-            raise ValueError('type must be \'branches\' or \'tags\'')
+            raise ValueError('refType must be \'branches\' or \'tags\'')
 
-        # return if there's no config for the provided type
+        # return if there's no config for the provided refType
         if config is None:
             return
 
-        # delete all removed and modified names
-        self._remove(type, config, diff['removed'] + diff['modified'])
+        # delete all removed and modified refNames
+        self._remove(refType, config, diff['removed'] + diff['modified'])
 
-        # add all modified and added names
-        self._add(type, config, diff['modified'] + diff['added'])
+        # add all modified and added refNames
+        self._add(refType, config, diff['modified'] + diff['added'])
 
-    def _remove(self, type, config, names):
+    def _remove(self, refType, config, refNames):
         '''Remove provided branch/tag checkouts'''
-        for name in names:
+        for name in refNames:
             # check if name is valid
             if not config.is_valid_name(name):
                 continue
 
             # delete target dir if it exists
-            path = config.targetPath + '/' + name
+            path = config.path + '/' + name
             if os.path.exists(path):
                 # emit pre-remove event
-                config.emit(type, 'pre-remove', name,
+                config.emit(refType, 'pre-remove', name,
                             'about to remove path {0}'.format(path))
 
                 # actually remove path
                 shutil.rmtree(path)
 
                 # emit post-remove event
-                config.emit(type, 'post-remove', name,
+                config.emit(refType, 'post-remove', name,
                             'removed path {0}'.format(path))
 
-    def _add(self, type, config, names):
+    def _add(self, refType, config, refNames):
         '''Add provided branch/tag checkouts'''
-        for name in names:
+        for name in refNames:
             # check if name is valid
             if not config.is_valid_name(name):
                 continue
 
             # delete target dir if it exists (it shouldn't!)
-            path = config.targetPath + '/' + name
+            path = config.path + '/' + name
             if os.path.exists(path):
                 print('Warning: removing path {0} (which shouldn\'t be there)'
                       .format(path), file=sys.stderr)
                 shutil.rmtree(path)
 
             # emit pre-add event
-            config.emit(type, 'pre-add', name,
+            config.emit(refType, 'pre-add', name,
                         'about to clone to path {0}'.format(path))
 
             # shallow-clone
             self.repo.clone(path, branch=name, depth=1)
 
             # emit post-add event
-            config.emit(type, 'post-add', name,
+            config.emit(refType, 'post-add', name,
                         'cloned to path {0}'.format(path))
