@@ -57,25 +57,12 @@ class MirrorHub(object):
             # update origin url
             if remoteUrl is not None:
                 self.repo.git.remote('set-url', 'origin', remoteUrl)
-
-            self.sync()
         else:
             # clone
             self.repo = Repo.clone_from(remoteUrl, mirrorPath, mirror=True)
 
-            # apply 'virtual' diff where all branches + tags are added
-            self._apply_diff('branches', {
-                'removed': [],
-                'added': [branch.name for branch in self.repo.branches],
-                'modified': [],
-                'unmodified': []
-                })
-            self._apply_diff('tags', {
-                'removed': [],
-                'added': [tag.name for tag in self.repo.tags],
-                'modified': [],
-                'unmodified': []
-                })
+        # sync updates/creates the checked out branches/tags
+        self.sync()
 
     def sync(self):
         '''Sync the mirror and apply all changes'''
@@ -100,8 +87,10 @@ class MirrorHub(object):
         # delete all removed and modified refNames
         self._remove(refType, config, diff['removed'] + diff['modified'])
 
-        # add all modified and added refNames
-        self._add(refType, config, diff['modified'] + diff['added'])
+        # add all modified, unmodified and added refNames
+        # (unmodified are checked in _add)
+        self._add(refType, config,
+                  diff['modified'] + diff['unmodified'] + diff['added'])
 
     def _remove(self, refType, config, refNames):
         '''Remove provided branch/tag checkouts'''
@@ -126,17 +115,20 @@ class MirrorHub(object):
 
     def _add(self, refType, config, refNames):
         '''Add provided branch/tag checkouts'''
+        # create dir if it does not exist
+        basepath = os.path.abspath(config.path)
+        if not os.path.exists(basepath):
+            os.makedirs(basepath)
+
         for name in refNames:
             # check if name is valid
             if not config.is_valid_name(name):
                 continue
 
-            # delete target dir if it exists (it shouldn't!)
-            path = config.path + '/' + name
+            # skip if target dir exists
+            path = basepath + '/' + name
             if os.path.exists(path):
-                print('Warning: removing path {0} (which shouldn\'t be there)'
-                      .format(path), file=sys.stderr)
-                shutil.rmtree(path)
+                continue
 
             # emit pre-add event
             config.emit(refType, 'pre-add', name,
